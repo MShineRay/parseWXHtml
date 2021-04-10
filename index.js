@@ -1,13 +1,13 @@
-var http = require('https');
 var fs = require('fs');
+var path = require('path');
 var cheerio = require('cheerio');
-var request = require('request');
 console.log('being...')
 /**
  * parseFile
  * @type {string}
  *
  */
+
 /**
  * 实现思路
  * 1、遍历src下的所有文件并解析,找到src/*.html, 解析其文件名，在当前目录找到其对应的子目录（资源文件）
@@ -17,6 +17,112 @@ console.log('being...')
  * 6、clean 删除 src下已经处理过的源文件及其依赖的资源文件
  * @type {string}
  */
+var filePath = path.resolve(__dirname + '/data');
+
+/**
+ * 文件遍历方法
+ * @param filePath 需要遍历的文件路径
+ */
+function readFiles(fileOrDirPath,{filename=''}={}) {
+  if (fileOrDirPath) {
+    var stat = fs.lstatSync(fileOrDirPath);
+    var isDir = stat.isDirectory();// true || false 判断是不是文件夹
+    var isFile = stat.isFile();// true || false 判断是不是文件夹
+    if (isDir) {
+      //根据文件路径读取文件，返回文件列表
+      fs.readdir(fileOrDirPath, function (err, files) {
+        if (err) {
+          console.warn(err)
+        } else {
+          //遍历读取到的文件列表
+          console.log('files:', files)
+          files.forEach(function (filename) {
+            //获取当前文件的绝对路径
+            console.log('filename:', filename)
+            console.log('fileDirPath:', fileOrDirPath)
+            var filedir = path.join(fileOrDirPath, filename);
+            readFiles(filedir,{fileOrDirPath, filename});//递归，如果是文件夹，就继续遍历该文件夹下面的文件
+          });
+        }
+      });
+    } else if (isFile) {
+      if (isFile) {
+        console.log("fileOrDirPath:", fileOrDirPath);
+        // fs.readFile(filePath, 'utf8', function (err, files) {
+        //   console.log("files:",files)
+        //   var $ = cheerio.load(filePath)
+        //   $("[style='display:none;']").remove()
+        //   // $("[data-id='heading-0']").remove()// cheerio未实现根据data-id属性的查找dom
+        //   $("section[data-role='outer']").remove()
+        //   var js_content = $('#js_content').html()
+        //   var newHtml = `<!DOCTYPE html>
+        //   <html lang="en">
+        //   <head>
+        //       <meta charset="UTF-8">
+        //       <title>Title</title>
+        //   </head>
+        //   <body>
+        //   ${js_content}
+        //   </body>
+        //   </html>`
+        //   // fs.writeFile('./dist/Vue高版本中一些新特性的使用.html',
+        //   //   newHtml, 'utf8', function (err) {
+        //   //     if (err) return console.log(err);
+        //   //   });
+        //
+        // })
+      }
+    }
+  }
+
+}
+
+readFiles(filePath)
+//readdir方法读取文件名
+//readFile方法读取文件内容
+//writeFile改写文件内容
+// fs.readdir(filePath, 'utf8', function (err, data) {
+//   data.forEach(function (item, index) {
+//     console.log(item)
+//     var stat = fs.lstatSync(item);
+//     var isDir = stat.isDirectory();// true || false 判断是不是文件夹
+//     if (isDir)
+//       fs.readFile('./dist/' + item, 'utf8', function (err, files) {
+//         console.log(files)
+//         // var result = files.replace(/要替换的内容/g, '替换后的内容');
+//         //
+//         // fs.writeFile('./js/'+item, result, 'utf8', function (err) {
+//         //     if (err) return console.log(err);
+//         // });
+//
+//         //     var $ = cheerio.load(data)
+//         //     $("[style='display:none;']").remove()
+//         //     // $("[data-id='heading-0']").remove()// cheerio未实现根据data-id属性的查找dom
+//         //     $("section[data-role='outer']").remove()
+//         //     var js_content = $('#js_content').html()
+//         //     var newHtml = `<!DOCTYPE html>
+//         // <html lang="en">
+//         // <head>
+//         //     <meta charset="UTF-8">
+//         //     <title>Title</title>
+//         // </head>
+//         // <body>
+//         // ${js_content}
+//         // </body>
+//         // </html>`
+//         //     //
+//         //
+//         //     // console.log("$", $('#page-content').html())
+//         //     // console.log(  $pageContent.html()  )
+//         //     fs.writeFile('./dist/Vue高版本中一些新特性的使用.html',
+//         //         newHtml, 'utf8', function (err) {
+//         //             if (err) return console.log(err);
+//         //         });
+//
+//       })
+//   });
+//
+// });
 
 // var url = 'https://mp.weixin.qq.com/s/OL9AXTl7XaEsUicizYkWPw';
 // http.get(url, result => {
