@@ -1,6 +1,8 @@
-var fs = require('fs');
-var path = require('path');
-var cheerio = require('cheerio');
+const fs = require('fs');
+const path = require('path');
+const cheerio = require('cheerio');
+const jschardet = require('jschardet')
+const iconvLite = require('iconv-lite')
 console.log('being...')
 /**
  * parseFile
@@ -17,12 +19,11 @@ console.log('being...')
  * 6、clean 删除 src下已经处理过的源文件及其依赖的资源文件
  * @type {string}
  */
-var filePath = path.resolve(__dirname + '/data');
+const filePath = path.resolve(__dirname + '/data');
 const fileWhiteList = [
   'html',
   'png',
-  'jpg', 'jpeg', 'bmp', 'gif', 'webp', 'psd', 'svg', 'tiff',
-  ''
+  'jpg', 'jpeg', 'bmp', 'gif', 'webp', 'psd', 'svg', 'tiff'
 ]
 
 function isAssetTypeAnImage(ext) {
@@ -56,7 +57,12 @@ function getFileExt(filePath) {
 //     }
 //   });
 // }
-// 递归创建目录 同步方法
+
+/**
+ * 递归创建目录 同步方法
+ * @param dirname
+ * @returns {boolean}
+ */
 function mkdirsSync(dirname) {
   if (fs.existsSync(dirname)) {
     return true;
@@ -68,24 +74,28 @@ function mkdirsSync(dirname) {
   }
 }
 
-// mkdirsSync("./dist/1/2/3/data.html")
-function rmdir(filePath, callback) {
+/**
+ * 递归删除文件夹及其下子目录
+ * @param filePath
+ * @param callback
+ */
+function rmdir(filePath, callback, delDir = true) {
   // 先判断当前filePath的类型(文件还是文件夹,如果是文件直接删除, 如果是文件夹, 去取当前文件夹下的内容, 拿到每一个递归)
-  fs.stat(filePath, function(err, stat) {
-    if(err) return console.log(err)
-    if(stat.isFile()) {
+  fs.stat(filePath, function (err, stat) {
+    if (err) return console.log(err)
+    if (stat.isFile()) {
       fs.unlink(filePath, callback)
-    }else {
-      fs.readdir(filePath, function(err, data) {
-        if(err) return console.log(err)
+    } else {
+      fs.readdir(filePath, function (err, data) {
+        if (err) return console.log(err)
         let dirs = data.map(dir => path.join(filePath, dir))
         let index = 0
         !(function next() {
           // 此处递归删除掉所有子文件 后删除当前 文件夹
-          if(index === dirs.length) {
+          if (index === dirs.length) {
             fs.rmdir(filePath, callback)
-          }else {
-            rmdir(dirs[index++],next)
+          } else {
+            rmdir(dirs[index++], next)
           }
         })()
       })
@@ -93,14 +103,17 @@ function rmdir(filePath, callback) {
   })
 }
 
+
 /**
  *
- * @param fileOrDirPath
- * @param fileDir
+ * @param fileOrDirPath {String} 文件或文件夹路径
+ * @param fileDir {String} 文件或文件夹上级路径
  * @param filename
- * @param path
+ * @param filePath
  * @param isDir
  * @param isFile
+ * @param dirLevel
+ * @param fileType
  */
 function readFiles(fileOrDirPath, {
   fileDir,//文件所在文件夹
@@ -138,6 +151,7 @@ function readFiles(fileOrDirPath, {
             const isFile = stat.isFile();// true || false 判断是不是文件夹
             //获取后缀
             var fileType = getFileExt(filePath);
+            const encoding = 'utf-8'
             //输出结果
             // console.log(fileType);
             const fileInfo = {
@@ -147,17 +161,18 @@ function readFiles(fileOrDirPath, {
               isDir,
               isFile,
               dirLevel,
-              fileType
+              fileType,
+              encoding
             }
             console.log('fileInfo:', fileInfo)
-            if (isDir || isFile && fileWhiteList.includes(fileType)) {
+            if (isDir || isFile && (fileWhiteList.includes(fileType) || fileType === filePath)) {
               readFiles(filePath, fileInfo);//递归，如果是文件夹，就继续遍历该文件夹下面的文件
             }
           });
         }
       });
     } else if (isFileDef) {
-      // console.log("fileOrDirPath:", fileOrDirPath);
+      console.log("fileOrDirPath:", fileOrDirPath);
       // console.log("filename:", filename);
       // console.log("fileDir:", fileDir);
       var fileList = filePath.split('data')
@@ -165,20 +180,20 @@ function readFiles(fileOrDirPath, {
       fileList.splice(0, 1)
       // console.log("fileList:", fileList)
       var fileDistDir = fileList.join('data')
-      // console.log('fileDistDir:', fileDistDir)
+      console.log('fileDistDir:', fileDistDir)
       // console.log('fileType:', fileType)
       mkdirsSync('./dist' + fileDistDir.split(filename)[0])
 
-      if(fileType === 'html'){
-        console.log('fileOrDirPath:',fileOrDirPath)
+      if (fileType === 'html' && dirLevel<2) {
+        // console.log('fileOrDirPath:',fileOrDirPath)
         let file = fs.readFileSync(filePath, 'utf8')
-        var $ =  cheerio.load(file)
-        console.log("$:", $.html())
+        var $ = cheerio.load(file)
+        // console.log("$:", $.html())
         $("[style='display:none;']").remove()
         // $("[data-id='heading-0']").remove()// cheerio未实现根据data-id属性的查找dom
         $("section[data-role='outer']").remove()
         var js_content = $('#js_content').html()
-        console.log('js_content:',js_content)
+        // console.log('js_content:',js_content)
 
         var newHtml = `<!DOCTYPE html>
         <html lang="en">
@@ -190,13 +205,27 @@ function readFiles(fileOrDirPath, {
         ${js_content}
         </body>
         </html>`
-        console.log('newHtml:',newHtml)
+        // console.log('newHtml:',newHtml)
         fs.writeFile('./dist' + fileDistDir, newHtml, 'utf8', function (err) {
-            if (err) return console.log(err);
+          if (err) return console.log(err);
         });
-      }else{
-        let file = fs.readFileSync(filePath, 'utf8')
-        fs.writeFileSync('./dist' + fileDistDir, file, 'utf8')
+      } else {
+        let file = fs.readFileSync(filePath, 'binary')
+        // const buf = new Buffer(file, 'binary');
+        // const result = jschardet.detect(file);
+        // let encoding = 'utf-8'
+        // if(result.encoding){
+        //   // import fs from('fs');
+        //   // import iconv from 'iconv-lite';
+        //   // const data = fs.readFileSync(path,{encoding:'binary'});
+        //   // const buf = new Buffer(data, 'binary');
+        //   // const str = iconv.decode(buf, 'GBK')
+        //   encoding = result.encoding
+        // }
+        // const str = iconvLite.decode(buf, encoding)
+
+        // console.log('result:',result)
+        fs.writeFileSync('./dist' + fileDistDir, file, 'binary')
       }
     }
   }
@@ -204,11 +233,13 @@ function readFiles(fileOrDirPath, {
 }
 
 
-rmdir('./dist/', function() {
-  console.log('dist删除成功')
-})
+// rmdir('./dist/', function () {
+//   console.log('dist删除成功')
+// })
 
 readFiles(filePath)
+
+
 
 // var $ = cheerio.load('/Users/mshineray/workspace/me/parseWXHtml/data/Vue高版本中一些新特性的使用.html')
 // console.log('$:',$.html())
