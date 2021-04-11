@@ -18,156 +18,197 @@ console.log('being...')
  * @type {string}
  */
 var filePath = path.resolve(__dirname + '/data');
+const fileWhiteList = [
+  'html',
+  'png',
+  'jpg', 'jpeg', 'bmp', 'gif', 'webp', 'psd', 'svg', 'tiff',
+  ''
+]
+
+function isAssetTypeAnImage(ext) {
+  return [
+    'png', 'jpg', 'jpeg', 'bmp', 'gif', 'webp', 'psd', 'svg', 'tiff'].indexOf(ext.toLowerCase()) !== -1;
+}
 
 /**
- * 文件遍历方法
- * @param filePath 需要遍历的文件路径
+ * 根据文件路径获取文件后缀（文件类型）
+ * @param filePath
+ * @returns {string}
  */
-function readFiles(fileOrDirPath,{filename=''}={}) {
+function getFileExt(filePath) {
+  //获取最后一个.的位置
+  var index = filePath.lastIndexOf(".");
+  //获取后缀
+  return filePath.substr(index + 1)
+}
+
+// 递归创建目录 异步方法
+// function mkdirs(dirname, callback) {
+//   fs.exists(dirname, function (exists) {
+//     if (exists) {
+//       callback();
+//     } else {
+//       // console.log(path.dirname(dirname));
+//       mkdirs(path.dirname(dirname), function () {
+//         fs.mkdir(dirname, callback);
+//         console.log('在' + path.dirname(dirname) + '目录创建好' + dirname  +'目录');
+//       });
+//     }
+//   });
+// }
+// 递归创建目录 同步方法
+function mkdirsSync(dirname) {
+  if (fs.existsSync(dirname)) {
+    return true;
+  } else {
+    if (mkdirsSync(path.dirname(dirname))) {
+      fs.mkdirSync(dirname);
+      return true;
+    }
+  }
+}
+
+// mkdirsSync("./dist/1/2/3/data.html")
+function rmdir(filePath, callback) {
+  // 先判断当前filePath的类型(文件还是文件夹,如果是文件直接删除, 如果是文件夹, 去取当前文件夹下的内容, 拿到每一个递归)
+  fs.stat(filePath, function(err, stat) {
+    if(err) return console.log(err)
+    if(stat.isFile()) {
+      fs.unlink(filePath, callback)
+    }else {
+      fs.readdir(filePath, function(err, data) {
+        if(err) return console.log(err)
+        let dirs = data.map(dir => path.join(filePath, dir))
+        let index = 0
+        !(function next() {
+          // 此处递归删除掉所有子文件 后删除当前 文件夹
+          if(index === dirs.length) {
+            fs.rmdir(filePath, callback)
+          }else {
+            rmdir(dirs[index++],next)
+          }
+        })()
+      })
+    }
+  })
+}
+
+/**
+ *
+ * @param fileOrDirPath
+ * @param fileDir
+ * @param filename
+ * @param path
+ * @param isDir
+ * @param isFile
+ */
+function readFiles(fileOrDirPath, {
+  fileDir,//文件所在文件夹
+  filename,
+  filePath,//文件绝对路径
+  isDir,
+  isFile,
+  dirLevel = 0,
+  fileType
+} = {}) {
   if (fileOrDirPath) {
-    var stat = fs.lstatSync(fileOrDirPath);
-    var isDir = stat.isDirectory();// true || false 判断是不是文件夹
-    var isFile = stat.isFile();// true || false 判断是不是文件夹
-    if (isDir) {
+    let isDirDef = isDir;// true || false 判断是不是文件夹
+    let isFileDef = isFile;// true || false 判断是不是文件夹
+
+    if (!filePath) {
+      let lstatSync = fs.lstatSync(fileOrDirPath);
+      isDirDef = lstatSync.isDirectory()
+      isFileDef = lstatSync.isFile()
+    }
+
+    if (isDirDef) {
       //根据文件路径读取文件，返回文件列表
       fs.readdir(fileOrDirPath, function (err, files) {
         if (err) {
           console.warn(err)
         } else {
           //遍历读取到的文件列表
-          console.log('files:', files)
+          // console.log('files:', files)
+          dirLevel++
           files.forEach(function (filename) {
             //获取当前文件的绝对路径
-            console.log('filename:', filename)
-            console.log('fileDirPath:', fileOrDirPath)
-            var filedir = path.join(fileOrDirPath, filename);
-            readFiles(filedir,{fileOrDirPath, filename});//递归，如果是文件夹，就继续遍历该文件夹下面的文件
+            const filePath = path.join(fileOrDirPath, filename);
+            const stat = fs.lstatSync(filePath);
+            const isDir = stat.isDirectory();// true || false 判断是不是文件夹
+            const isFile = stat.isFile();// true || false 判断是不是文件夹
+            //获取后缀
+            var fileType = getFileExt(filePath);
+            //输出结果
+            // console.log(fileType);
+            const fileInfo = {
+              fileDir: fileOrDirPath,
+              filename,
+              filePath,
+              isDir,
+              isFile,
+              dirLevel,
+              fileType
+            }
+            console.log('fileInfo:', fileInfo)
+            if (isDir || isFile && fileWhiteList.includes(fileType)) {
+              readFiles(filePath, fileInfo);//递归，如果是文件夹，就继续遍历该文件夹下面的文件
+            }
           });
         }
       });
-    } else if (isFile) {
-      if (isFile) {
-        console.log("fileOrDirPath:", fileOrDirPath);
-        // fs.readFile(filePath, 'utf8', function (err, files) {
-        //   console.log("files:",files)
-        //   var $ = cheerio.load(filePath)
-        //   $("[style='display:none;']").remove()
-        //   // $("[data-id='heading-0']").remove()// cheerio未实现根据data-id属性的查找dom
-        //   $("section[data-role='outer']").remove()
-        //   var js_content = $('#js_content').html()
-        //   var newHtml = `<!DOCTYPE html>
-        //   <html lang="en">
-        //   <head>
-        //       <meta charset="UTF-8">
-        //       <title>Title</title>
-        //   </head>
-        //   <body>
-        //   ${js_content}
-        //   </body>
-        //   </html>`
-        //   // fs.writeFile('./dist/Vue高版本中一些新特性的使用.html',
-        //   //   newHtml, 'utf8', function (err) {
-        //   //     if (err) return console.log(err);
-        //   //   });
-        //
-        // })
+    } else if (isFileDef) {
+      // console.log("fileOrDirPath:", fileOrDirPath);
+      // console.log("filename:", filename);
+      // console.log("fileDir:", fileDir);
+      var fileList = filePath.split('data')
+      // console.log("fileList:", fileList)
+      fileList.splice(0, 1)
+      // console.log("fileList:", fileList)
+      var fileDistDir = fileList.join('data')
+      // console.log('fileDistDir:', fileDistDir)
+      // console.log('fileType:', fileType)
+      mkdirsSync('./dist' + fileDistDir.split(filename)[0])
+
+      if(fileType === 'html'){
+        console.log('fileOrDirPath:',fileOrDirPath)
+        let file = fs.readFileSync(filePath, 'utf8')
+        var $ =  cheerio.load(file)
+        console.log("$:", $.html())
+        $("[style='display:none;']").remove()
+        // $("[data-id='heading-0']").remove()// cheerio未实现根据data-id属性的查找dom
+        $("section[data-role='outer']").remove()
+        var js_content = $('#js_content').html()
+        console.log('js_content:',js_content)
+
+        var newHtml = `<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>Title</title>
+        </head>
+        <body>
+        ${js_content}
+        </body>
+        </html>`
+        console.log('newHtml:',newHtml)
+        fs.writeFile('./dist' + fileDistDir, newHtml, 'utf8', function (err) {
+            if (err) return console.log(err);
+        });
+      }else{
+        let file = fs.readFileSync(filePath, 'utf8')
+        fs.writeFileSync('./dist' + fileDistDir, file, 'utf8')
       }
     }
   }
 
 }
 
-readFiles(filePath)
-//readdir方法读取文件名
-//readFile方法读取文件内容
-//writeFile改写文件内容
-// fs.readdir(filePath, 'utf8', function (err, data) {
-//   data.forEach(function (item, index) {
-//     console.log(item)
-//     var stat = fs.lstatSync(item);
-//     var isDir = stat.isDirectory();// true || false 判断是不是文件夹
-//     if (isDir)
-//       fs.readFile('./dist/' + item, 'utf8', function (err, files) {
-//         console.log(files)
-//         // var result = files.replace(/要替换的内容/g, '替换后的内容');
-//         //
-//         // fs.writeFile('./js/'+item, result, 'utf8', function (err) {
-//         //     if (err) return console.log(err);
-//         // });
-//
-//         //     var $ = cheerio.load(data)
-//         //     $("[style='display:none;']").remove()
-//         //     // $("[data-id='heading-0']").remove()// cheerio未实现根据data-id属性的查找dom
-//         //     $("section[data-role='outer']").remove()
-//         //     var js_content = $('#js_content').html()
-//         //     var newHtml = `<!DOCTYPE html>
-//         // <html lang="en">
-//         // <head>
-//         //     <meta charset="UTF-8">
-//         //     <title>Title</title>
-//         // </head>
-//         // <body>
-//         // ${js_content}
-//         // </body>
-//         // </html>`
-//         //     //
-//         //
-//         //     // console.log("$", $('#page-content').html())
-//         //     // console.log(  $pageContent.html()  )
-//         //     fs.writeFile('./dist/Vue高版本中一些新特性的使用.html',
-//         //         newHtml, 'utf8', function (err) {
-//         //             if (err) return console.log(err);
-//         //         });
-//
-//       })
-//   });
-//
-// });
 
-// var url = 'https://mp.weixin.qq.com/s/OL9AXTl7XaEsUicizYkWPw';
-// http.get(url, result => {
-//   console.log(result)
-//     result.setEncoding('utf-8');
-//     var resChunk = '';
-//     result.on('data', chunk => {
-//         resChunk += chunk;
-//     });
-//     result.on('end', () => {
-//         var $ = cheerio.load(resChunk);
-//         // $('img').each((index, res) => {
-//         //     // 对img标签进行处理
-//         //     if(res.attribs['data-src']){
-//         //         var src = res.attribs['data-src'];
-//         //         var srcArr = src.split('/');
-//         //         var fileType = srcArr[srcArr.length - 1].split('=')[1];
-//         //         var fileName = srcArr[srcArr.length - 2] + '.' + fileType;
-//         //         // request.head(src,function(err,res,body){
-//         //         //     if(err){
-//         //         //         console.log(err);
-//         //         //     }
-//         //         // });
-//         //         // 写入图片
-//         //         request(src).pipe(fs.createWriteStream('./data/image/' + fileName));
-//         //         // 把原路径改为本地路径
-//         //         res.attribs['data-src'] = './images/' + fileName;
-//         //         res.attribs.src = './image/' + fileName
-//         //     }
-//         // });
-//         // $('link').each((index, res) => {
-//             // 对link标签进行处理
-//         //     if(res.attribs.href){
-//         //         res.attribs.href = 'https:' + res.attribs.href
-//         //     }
-//         // });
-//         // 暂时还没想好怎么处理script
-//         // $('script').each((index, res) => {
-//         //
-//         // });
-//         // 写入文件
-//         fs.appendFile('./data/index.html', $.html(), 'utf-8', err => {
-//             if(err){
-//                 console.log(err)
-//             }
-//         });
-//     })
-// });
+rmdir('./dist/', function() {
+  console.log('dist删除成功')
+})
+
+readFiles(filePath)
+
+// var $ = cheerio.load('/Users/mshineray/workspace/me/parseWXHtml/data/Vue高版本中一些新特性的使用.html')
+// console.log('$:',$.html())
