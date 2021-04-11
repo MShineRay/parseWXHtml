@@ -1,9 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const cheerio = require('cheerio');
-const jschardet = require('jschardet')
-const iconvLite = require('iconv-lite')
-console.log('being...')
+// const jschardet = require('jschardet')
+// const iconvLite = require('iconv-lite')
 /**
  * parseFile
  * @type {string}
@@ -115,7 +114,7 @@ function rmdir(filePath, callback, delDir = true) {
  * @param dirLevel
  * @param fileType
  */
-function readFiles(fileOrDirPath, {
+function parseWXHTML(fileOrDirPath, {
   fileDir,//文件所在文件夹
   filename,
   filePath,//文件绝对路径
@@ -150,10 +149,8 @@ function readFiles(fileOrDirPath, {
             const isDir = stat.isDirectory();// true || false 判断是不是文件夹
             const isFile = stat.isFile();// true || false 判断是不是文件夹
             //获取后缀
-            var fileType = getFileExt(filePath);
+            const fileType = getFileExt(filePath);
             const encoding = 'utf-8'
-            //输出结果
-            // console.log(fileType);
             const fileInfo = {
               fileDir: fileOrDirPath,
               filename,
@@ -164,36 +161,25 @@ function readFiles(fileOrDirPath, {
               fileType,
               encoding
             }
-            console.log('fileInfo:', fileInfo)
             if (isDir || isFile && (fileWhiteList.includes(fileType) || fileType === filePath)) {
-              readFiles(filePath, fileInfo);//递归，如果是文件夹，就继续遍历该文件夹下面的文件
+              parseWXHTML(filePath, fileInfo);//递归，如果是文件夹，就继续遍历该文件夹下面的文件
             }
           });
         }
       });
     } else if (isFileDef) {
-      console.log("fileOrDirPath:", fileOrDirPath);
-      // console.log("filename:", filename);
-      // console.log("fileDir:", fileDir);
-      var fileList = filePath.split('data')
-      // console.log("fileList:", fileList)
+      let fileList = filePath.split('data')
       fileList.splice(0, 1)
-      // console.log("fileList:", fileList)
-      var fileDistDir = fileList.join('data')
-      console.log('fileDistDir:', fileDistDir)
-      // console.log('fileType:', fileType)
+      let fileDistDir = fileList.join('data')
       mkdirsSync('./dist' + fileDistDir.split(filename)[0])
 
       if (fileType === 'html' && dirLevel<2) {
-        // console.log('fileOrDirPath:',fileOrDirPath)
         let file = fs.readFileSync(filePath, 'utf8')
         var $ = cheerio.load(file)
-        // console.log("$:", $.html())
         $("[style='display:none;']").remove()
         // $("[data-id='heading-0']").remove()// cheerio未实现根据data-id属性的查找dom
         $("section[data-role='outer']").remove()
         var js_content = $('#js_content').html()
-        // console.log('js_content:',js_content)
 
         var newHtml = `<!DOCTYPE html>
         <html lang="en">
@@ -205,26 +191,11 @@ function readFiles(fileOrDirPath, {
         ${js_content}
         </body>
         </html>`
-        // console.log('newHtml:',newHtml)
         fs.writeFile('./dist' + fileDistDir, newHtml, 'utf8', function (err) {
           if (err) return console.log(err);
         });
       } else {
         let file = fs.readFileSync(filePath, 'binary')
-        // const buf = new Buffer(file, 'binary');
-        // const result = jschardet.detect(file);
-        // let encoding = 'utf-8'
-        // if(result.encoding){
-        //   // import fs from('fs');
-        //   // import iconv from 'iconv-lite';
-        //   // const data = fs.readFileSync(path,{encoding:'binary'});
-        //   // const buf = new Buffer(data, 'binary');
-        //   // const str = iconv.decode(buf, 'GBK')
-        //   encoding = result.encoding
-        // }
-        // const str = iconvLite.decode(buf, encoding)
-
-        // console.log('result:',result)
         fs.writeFileSync('./dist' + fileDistDir, file, 'binary')
       }
     }
@@ -232,14 +203,10 @@ function readFiles(fileOrDirPath, {
 
 }
 
+mkdirsSync('./dist')
 
-// rmdir('./dist/', function () {
-//   console.log('dist删除成功')
-// })
+rmdir('./dist/', function () {
+  console.log('dist删除成功')
+})
 
-readFiles(filePath)
-
-
-
-// var $ = cheerio.load('/Users/mshineray/workspace/me/parseWXHtml/data/Vue高版本中一些新特性的使用.html')
-// console.log('$:',$.html())
+parseWXHTML(filePath)
