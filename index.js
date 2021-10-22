@@ -207,6 +207,6 @@ mkdirsSync('./dist')
 
 rmdir('./dist/', function () {
   console.log('dist删除成功')
+  parseWXHTML(filePath)
 })
 
-parseWXHTML(filePath)

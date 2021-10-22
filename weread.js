@@ -3,6 +3,12 @@ const path = require('path');
 const cheerio = require('cheerio');
 // const jschardet = require('jschardet')
 // const iconvLite = require('iconv-lite')
+const pinyin = require('pinyin')
+function zhToPinyin(zh){
+  return pinyin(zh, {
+    style: pinyin.STYLE_NORMAL,
+  }).join("")
+}
 /**
  * 批量解析微信读书笔记html，并转换成对应的vue文件
  */
@@ -183,17 +189,7 @@ function parse(fileOrDirPath, {
         console.log(ary)
         console.log('bookName:'+bookName)
         console.log('author:'+author)
-
-        // var newHtml = `<!DOCTYPE html>
-        // <html lang="en">
-        // <head>
-        //     <meta charset="UTF-8">
-        //     <title>Title</title>
-        // </head>
-        // <body>
-        // ${js_content}
-        // </body>
-        // </html>`
+        var bookNamePinyin = zhToPinyin(bookName)
         var newVue = `<template>
   <div class="container">
   <h1 class="title">${bookName}</h1>
@@ -211,18 +207,16 @@ function parse(fileOrDirPath, {
 </template>
 <script>
 export default {
-  name: '${bookName+'-'+author}',
-  components: {
-    // HelloWorld,
-  },
+  name: '${bookNamePinyin}'
 }
 </script>
 <style lang="scss" scoped>
 @import '../../assets/css/weread.css';
 @import '../../assets/scss/readnotes';
 </style>`
-        var vueFile = fileDistDir.replace('.html','.vue').replace('-微信读书', '')
+        var vueFile = fileDistDir.replace('.html','.vue').replace('-微信读书', '').replace('-'+author, '')
         console.log('vueFile:'+vueFile)
+        vueFile = zhToPinyin(vueFile)
         fs.writeFile('./dist' + vueFile, newVue, 'utf8', function (err) {
           if (err) return console.log(err);
         });
@@ -233,7 +227,7 @@ export default {
           var dirName = fileDistDir.split('/')[1]
           var imgFile = fileDistDir.replace(dirName, 'img')
           console.log('imgFile:'+imgFile)
-          fs.writeFileSync('./dist' + fileDistDir, file, 'binary')
+          fs.writeFileSync('./dist' + imgFile, file, 'binary')
         }
       }
     }
@@ -243,6 +237,7 @@ export default {
 mkdirsSync('./dist')
 
 rmdir('./dist/', function () {
+  mkdirsSync('./dist/img')
   console.log('dist删除成功')
   parse(filePath)
 
