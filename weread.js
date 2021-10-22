@@ -167,7 +167,7 @@ async function parse(fileOrDirPath, {
       let fileList = filePath.split('data')
       fileList.splice(0, 1)
       let fileDistDir = fileList.join('data')
-      mkdirsSync(wereadConfig.outputDir/*'./dist'*/ + fileDistDir.split(filename)[0])
+      // mkdirsSync(wereadConfig.outputDir/*'./dist'*/ + fileDistDir.split(filename)[0])
       // console.log('fileDistDir:'+fileDistDir)
       // console.log('fileType:'+fileType)
       var imgName = ''
