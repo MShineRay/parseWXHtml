@@ -11,3 +11,5 @@ var dirName = fileDistDir.split('/')[1]
 var imgFile = fileDistDir.replace(dirName, 'img')
 console.log('imgFile:'+imgFile)
 
+
+console.log('./微信读书-正版书籍小说免费阅读_files/t6_26859484.jpg'.split('/').pop())
